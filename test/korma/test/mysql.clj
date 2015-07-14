@@ -12,6 +12,24 @@
 (defentity users-mysql (database test-db-mysql))
 (defentity users-non-mysql (database test-db-non-mysql))
 
+(deftest connection-spec-by-uri
+  (is (= (postgres {:db "db_name" :user "user_name" :password "password"})
+         (db-uri "jdbc:postgresql://localhost/db_name?user=user_name&password=password")))
+  (is (= (postgres {:db "db_name" :user "user_name" :password "password"})
+         (db-uri "postgres://user_name:password@localhost/db_name")))
+  (is (= (postgres {:db "db_name" :user "user_name" :password "password", :host "hostname", :port 5000})
+         (db-uri "jdbc:postgresql://hostname:5000/db_name?user=user_name&password=password")))
+  (is (= (postgres {:db "db_name" :user "user_name" :password "password", :host "hostname", :port 5000})
+         (db-uri "postgres://user_name:password@hostname:5000/db_name")))
+  (is (= (mysql {:db "db_name" :user "user_name" :password "password"})
+         (db-uri "jdbc:mysql://localhost/db_name?user=user_name&password=password")))
+  (is (= (mysql {:db "db_name" :user "user_name" :password "password"})
+         (db-uri "mysql://user_name:password@localhost/db_name")))
+  (is (= (mysql {:db "db_name" :user "user_name" :password "password", :host "hostname", :port 5000})
+         (db-uri "jdbc:mysql://hostname:5000/db_name?user=user_name&password=password")))
+  (is (= (mysql {:db "db_name" :user "user_name" :password "password", :host "hostname", :port 5000})
+         (db-uri "mysql://user_name:password@hostname:5000/db_name"))))
+
 (deftest test-mysql-count
   (sql-only
    (are [result query] (= result query)

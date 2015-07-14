@@ -261,6 +261,29 @@
           :make-pool? make-pool?}
          (dissoc opts :db)))
 
+(defn db-uri
+  "Create a database specification from an URI."
+  [uri]
+  (let [clean-uri (-> uri
+                      (clojure.string/replace #"^jdbc:" "") ; remove the jdbc: part that confuses java.net.URI
+                      (clojure.string/replace #"^postgresql:" "postgres:"))  ; normalize postgresql to postgres as the schema
+        parsed-uri (java.net.URI. clean-uri)
+        query (if (.getQuery parsed-uri) (apply hash-map (clojure.string/split (.getQuery parsed-uri) #"[=&]")) {})
+        [username password] (if (.getUserInfo parsed-uri) (clojure.string/split (.getUserInfo parsed-uri) #":") [nil nil])
+        database-name (clojure.string/replace (.getPath parsed-uri) #"^/" "")
+        port (if (not= -1 (.getPort parsed-uri)) (.getPort parsed-uri))]
+    (case (.getScheme parsed-uri)
+      ("firebird" "postgres" "oracle" "mysql" "vertica" "mssql")
+      (do
+        (apply (ns-resolve 'korma.db (symbol (.getScheme parsed-uri)))
+               [(merge {:db       database-name
+                        :user     (or username (query "user"))
+                        :password (or password (query "password"))
+                        :host     (.getHost parsed-uri)}
+                       (if port {:port port}))]))
+      ; TODO: add the non-network databases, like h2 and sqlite.
+      (throw (Exception. (str "Unsupported URI scheme: " uri))))))
+
 (defmacro transaction
   "Execute all queries within the body in a single transaction.
   Optionally takes as a first argument a map to specify the :isolation and :read-only? properties of the transaction."
