@@ -3,7 +3,7 @@
         [korma.core :only [exec-raw]]
         [korma.db :only [connection-pool defdb get-connection h2 extract-options
                          msaccess mssql mysql odbc oracle postgres sqlite3 vertica
-                         firebird default-connection transaction]]))
+                         firebird db-uri default-connection transaction]]))
 
 (defdb mem-db (h2 {:db "mem:test"}))
 
@@ -105,6 +105,20 @@
                       :port "port"
                       :db "db"
                       :encoding "NONE"
+                      :make-pool? false}))))
+  (testing "firebirdsql - by connection uri"
+    (is (= {:classname "org.firebirdsql.jdbc.FBDriver"
+            :connection-uri "jdbc:firebirdsql:host/port:db"
+            :make-pool? true
+            :encoding "UTF8"}
+           (firebird {:connection-uri "jdbc:firebirdsql:host/port:db"}))))
+  (testing "firebirdsql - by connection uri with options"
+    (is (= {:classname "org.firebirdsql.jdbc.FBDriver"
+            :connection-uri "jdbc:firebirdsql:host/port:db"
+            :encoding "NONE"
+            :make-pool? false}
+           (firebird {:connection-uri "jdbc:firebirdsql:host/port:db"
+                      :encoding "NONE"
                       :make-pool? false})))))
 
 (deftest test-postgres
@@ -120,7 +134,18 @@
            (postgres {:host "host"
                       :port "port"
                       :db "db"
-                      :make-pool? false})))))
+                      :make-pool? false}))))
+  (testing "postgres by connection uri"
+    (is (= {:classname "org.postgresql.Driver"
+            :connection-uri "jdbc:postgresql://host:port/db"
+            :make-pool? true}
+           (db-uri {:connection-uri "jdbc:postgresql://host:port/db"}))))
+  (testing "postgres by connection uri with options"
+    (is (= {:classname "org.postgresql.Driver"
+            :connection-uri "jdbc:postgresql://host:port/db"
+            :make-pool? false}
+           (db-uri {:connection-uri "jdbc:postgresql://host:port/db"
+                    :make-pool? false})))))
 
 (deftest test-oracle
   (testing "oracle - defaults"
@@ -151,7 +176,20 @@
            (mysql {:host "host"
                    :port "port"
                    :db "db"
-                   :make-pool? false})))))
+                   :make-pool? false}))))
+  (testing "mysql - by connection uri"
+    (is (= {:classname "com.mysql.jdbc.Driver"
+            :connection-uri "jdbc:mysql://host:port/db"
+            :delimiters "`"
+            :make-pool? true}
+           (db-uri {:connection-uri "jdbc:mysql://host:port/db"}))))
+  (testing "mysql - by connection uri with options"
+    (is (= {:classname "com.mysql.jdbc.Driver"
+            :connection-uri "jdbc:mysql://host:port/db"
+            :delimiters "`"
+            :make-pool? false}
+           (db-uri {:connection-uri "jdbc:mysql://host:port/db"
+                    :make-pool? false})))))
 
 (deftest test-vertica
   (testing "vertica - defaults"
@@ -242,6 +280,11 @@
             :connection-uri "jdbc:h2:db"
             :make-pool? false}
            (h2 {:db "db" :make-pool? false})))))
+
+(deftest test-db-uri
+  (testing "exception on unrecognized protocol"
+    (is (thrown? Exception
+                 (db-uri {:connection-uri "jdbc:dbaseiii:db"})))))
 
 (deftest transaction-options
   (testing "if transaction macro respects isolation levels"

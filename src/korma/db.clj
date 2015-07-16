@@ -251,6 +251,23 @@
           :make-pool? make-pool?}
          (dissoc opts :db)))
 
+(defn db-uri
+  "Create a database specification based on a URI. Opts should include a key for
+  :connection-uri and any other options you wish to pass as the database specification."
+  [{:keys [connection-uri] :as opts}]
+  (let [protocol (second (re-find #"jdbc:([^:]+):.*" connection-uri))]
+    (case protocol
+      "firebirdsql" (firebird opts)
+      "postgresql" (postgres opts)
+      "oracle" (oracle opts)
+      "mysql" (mysql opts)
+      "vertica" (vertica opts)
+      "sqlserver" (mssql opts)
+      "odbc" (odbc opts) ;; This will catch both odbc and msaccess. I'm not sure if there's any value in trying to match msaccess.
+      "sqlite" (sqlite3 opts)
+      "h2" (h2 opts)
+      (throw (Exception. (str "Unknown protocol \"" protocol "\" from URI \"" connection-uri "\" (with options: " opts ")"))))))
+
 (defmacro transaction
   "Execute all queries within the body in a single transaction.
   Optionally takes as a first argument a map to specify the :isolation and :read-only? properties of the transaction."
