@@ -119,7 +119,8 @@
   (merge {:classname "org.firebirdsql.jdbc.FBDriver" ; must be in classpath
           :connection-uri (str "jdbc:firebirdsql:" host "/" port ":" db)
           :make-pool? make-pool?
-          :encoding "UTF8"}
+          :encoding "UTF8"
+          :protocol :firebirdsql}
          (dissoc opts :host :port :db)))
 
 (defn postgres
@@ -131,7 +132,8 @@
     :as opts}]
   (merge {:classname "org.postgresql.Driver" ; must be in classpath
           :connection-uri (str "jdbc:postgresql://" host ":" port "/" db)
-          :make-pool? make-pool?}
+          :make-pool? make-pool?
+          :protocol :postgresql}
          (dissoc opts :host :port :db)))
 
 (defn oracle
@@ -142,7 +144,8 @@
     :as opts}]
   (merge {:classname "oracle.jdbc.driver.OracleDriver" ; must be in classpath
           :connection-uri (str "jdbc:oracle:thin:@" host ":" port)
-          :make-pool? make-pool?}
+          :make-pool? make-pool?
+          :protocol :oracle}
          (dissoc opts :host :port)))
 
 (defn mysql
@@ -155,7 +158,8 @@
   (merge {:classname "com.mysql.jdbc.Driver" ; must be in classpath
           :connection-uri (str "jdbc:mysql://" host ":" port "/" db)
           :delimiters "`"
-          :make-pool? make-pool?}
+          :make-pool? make-pool?
+          :protocol :mysql}
          (dissoc opts :host :port :db)))
 
 (defn vertica
@@ -168,7 +172,8 @@
   (merge {:classname "com.vertica.jdbc.Driver" ; must be in classpath
           :connection-uri (str "jdbc:vertica://" host ":" port "/" db)
           :delimiters "\""
-          :make-pool? make-pool?}
+          :make-pool? make-pool?
+          :protocol :vertica}
          (dissoc opts :host :port :db)))
 
 
@@ -180,7 +185,8 @@
     :as opts}]
   (merge {:classname "com.microsoft.sqlserver.jdbc.SQLServerDriver" ; must be in classpath
           :connection-uri (str "jdbc:sqlserver://" host ":" port ";database=" db ";user=" user ";password=" password)
-          :make-pool? make-pool?}
+          :make-pool? make-pool?
+          :protocol :sqlserver}
          (dissoc opts :host :port :db)))
 
 (defn msaccess
@@ -193,7 +199,8 @@
           :connection-uri (str "jdbc:odbc:" (str "Driver={Microsoft Access Driver (*.mdb"
                                       (when (.endsWith db ".accdb") ", *.accdb")
                                       ")};Dbq=" db))
-          :make-pool? make-pool?}
+          :make-pool? make-pool?
+          :protocol :odbc}
          (dissoc opts :db)))
 
 (defn odbc
@@ -204,7 +211,8 @@
     :as opts}]
   (merge {:classname "sun.jdbc.odbc.JdbcOdbcDriver" ; must be in classpath
           :connection-uri (str "jdbc:odbc:" dsn)
-          :make-pool? make-pool?}
+          :make-pool? make-pool?
+          :protocol :odbc}
          (dissoc opts :dsn)))
 
 (defn sqlite3
@@ -215,7 +223,8 @@
     :as opts}]
   (merge {:classname "org.sqlite.JDBC" ; must be in classpath
           :connection-uri (str "jdbc:sqlite:" db)
-          :make-pool? make-pool?}
+          :make-pool? make-pool?
+          :protocol :sqlite}
          (dissoc opts :db)))
 
 (defn h2
@@ -226,23 +235,26 @@
     :as opts}]
   (merge {:classname "org.h2.Driver" ; must be in classpath
           :connection-uri (str "jdbc:h2:" db)
-          :make-pool? make-pool?}
+          :make-pool? make-pool?
+          :protocol :h2}
          (dissoc opts :db)))
 
 (defn- enhance-spec
-  [{:keys [connection-uri] :as spec}]
-  (let [protocol (second (re-find #"jdbc:([^:]+):.*" (or connection-uri "")))]
-    (case protocol
-      "firebirdsql" (firebird spec)
-      "postgresql" (postgres spec)
-      "oracle" (oracle spec)
-      "mysql" (mysql spec)
-      "vertica" (vertica spec)
-      "sqlserver" (mssql spec)
-      "odbc" (odbc spec) ;; This will catch both odbc and msaccess. I'm not sure if there's any value in trying to match msaccess.
-      "sqlite" (sqlite3 spec)
-      "h2" (h2 spec)
-      spec)))
+  [{:keys [connection-uri protocol] :as spec}]
+  (if protocol                                              ;; The presence of protocol means the spec is complete and shounldn't be further enhanced.
+    spec
+    (let [protocol (second (re-find #"jdbc:([^:]+):.*" (or connection-uri "")))]
+     (case protocol
+       "firebirdsql" (firebird spec)
+       "postgresql" (postgres spec)
+       "oracle" (oracle spec)
+       "mysql" (mysql spec)
+       "vertica" (vertica spec)
+       "sqlserver" (mssql spec)
+       "odbc" (odbc spec)                                   ;; This will catch both odbc and msaccess. I'm not sure if there's any value in trying to match msaccess.
+       "sqlite" (sqlite3 spec)
+       "h2" (h2 spec)
+       spec))))
 
 (defn create-db
   "Create a db connection object manually instead of using defdb. This is often
