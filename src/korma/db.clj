@@ -110,28 +110,6 @@
         @db
         db))))
 
-(defn create-db
-  "Create a db connection object manually instead of using defdb. This is often
-   useful for creating connections dynamically, and probably should be followed
-   up with:
-
-   (default-connection my-new-conn)
-
-   If the spec includes `:make-pool? true` makes a connection pool from the spec."
-  [spec]
-  {:pool (if (:make-pool? spec)
-           (delay-pool spec)
-           spec)
-   :options (extract-options spec)})
-
-(defmacro defdb
-  "Define a database specification. The last evaluated defdb will be used by
-  default for all queries where no database is specified by the entity."
-  [db-name spec]
-  `(let [spec# ~spec]
-     (defonce ~db-name (create-db spec#))
-     (default-connection ~db-name)))
-
 (defn firebird
   "Create a database specification for a FirebirdSQL database. Opts should include
   keys for :db, :user, :password. You can also optionally set host, port and make-pool?"
@@ -251,22 +229,43 @@
           :make-pool? make-pool?}
          (dissoc opts :db)))
 
-(defn db-uri
-  "Create a database specification based on a URI. Opts should include a key for
-  :connection-uri and any other options you wish to pass as the database specification."
-  [{:keys [connection-uri] :as opts}]
-  (let [protocol (second (re-find #"jdbc:([^:]+):.*" connection-uri))]
+(defn- enhance-spec
+  [{:keys [connection-uri] :as spec}]
+  (let [protocol (second (re-find #"jdbc:([^:]+):.*" (or connection-uri "")))]
     (case protocol
-      "firebirdsql" (firebird opts)
-      "postgresql" (postgres opts)
-      "oracle" (oracle opts)
-      "mysql" (mysql opts)
-      "vertica" (vertica opts)
-      "sqlserver" (mssql opts)
-      "odbc" (odbc opts) ;; This will catch both odbc and msaccess. I'm not sure if there's any value in trying to match msaccess.
-      "sqlite" (sqlite3 opts)
-      "h2" (h2 opts)
-      (throw (Exception. (str "Unknown protocol \"" protocol "\" from URI \"" connection-uri "\" (with options: " opts ")"))))))
+      "firebirdsql" (firebird spec)
+      "postgresql" (postgres spec)
+      "oracle" (oracle spec)
+      "mysql" (mysql spec)
+      "vertica" (vertica spec)
+      "sqlserver" (mssql spec)
+      "odbc" (odbc spec) ;; This will catch both odbc and msaccess. I'm not sure if there's any value in trying to match msaccess.
+      "sqlite" (sqlite3 spec)
+      "h2" (h2 spec)
+      spec)))
+
+(defn create-db
+  "Create a db connection object manually instead of using defdb. This is often
+   useful for creating connections dynamically, and probably should be followed
+   up with:
+
+   (default-connection my-new-conn)
+
+   If the spec includes `:make-pool? true` makes a connection pool from the spec."
+  [spec]
+  (let [enhanced-spec (enhance-spec spec)]
+    {:pool    (if (:make-pool? enhanced-spec)
+                (delay-pool enhanced-spec)
+                enhanced-spec)
+     :options (extract-options enhanced-spec)}))
+
+(defmacro defdb
+  "Define a database specification. The last evaluated defdb will be used by
+  default for all queries where no database is specified by the entity."
+  [db-name spec]
+  `(let [spec# ~spec]
+     (defonce ~db-name (create-db spec#))
+     (default-connection ~db-name)))
 
 (defmacro transaction
   "Execute all queries within the body in a single transaction.
