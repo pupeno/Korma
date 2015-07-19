@@ -22,13 +22,11 @@
   (or alias-delimiter " AS "))
 
 (defn extract-options [{:keys [naming
-                               delimiters 
-                               alias-delimiter
-                               subprotocol]}]
+                               delimiters
+                               alias-delimiter]}]
   {:naming (->naming naming)
    :delimiters (->delimiters delimiters)
-   :alias-delimiter (->alias-delimiter alias-delimiter)
-   :subprotocol subprotocol})
+   :alias-delimiter (->alias-delimiter alias-delimiter)})
 
 (defn default-connection
   "Set the database connection that Korma should use by default when no
